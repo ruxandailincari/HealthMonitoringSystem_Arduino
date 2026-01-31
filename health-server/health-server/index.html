@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Health Monitor</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    canvas {
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Live Health Data</h1>
+
+  <p>Heart Rate: <strong><span id="hr">--</span></strong> bpm</p>
+  <p>SpO₂: <strong><span id="spo2">--</span></strong> %</p>
+  <p>Temperature: <strong><span id="temp">--</span></strong> °C</p>
+  <p>Status ECG: <strong><span id="ecgStatus">--</span></strong></p>
+
+  <canvas id="ecgChart" width="900" height="300"></canvas>
+
+  <script>
+
+    const ws = new WebSocket("ws://localhost:8080");
+
+
+    const ecgData = [];
+    const labels = [];
+    const MAX_POINTS = 300;
+
+    const ctx = document.getElementById("ecgChart").getContext("2d");
+    const ecgChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "ECG",
+          data: ecgData,
+          borderWidth: 1,
+          pointRadius: 0,
+          tension: 0,
+        }]
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        scales: {
+          x: { display: false },
+          y: {
+            min: 0,
+            max: 1023
+          }
+        }
+      }
+    });
+
+
+    ws.onmessage = event => {
+      const d = JSON.parse(event.data);
+
+      document.getElementById("hr").textContent =
+        d.hr >= 0 ? d.hr : "--";
+
+      document.getElementById("spo2").textContent =
+        d.spo2 >= 0 ? d.spo2 : "--";
+
+      document.getElementById("temp").textContent =
+        d.temp.toFixed(2);
+
+      if (d.ecg >= 0) {
+        document.getElementById("ecgStatus").textContent = "OK";
+
+        ecgData.push(d.ecg);
+        labels.push("");
+
+        if (ecgData.length > MAX_POINTS) {
+          ecgData.shift();
+          labels.shift();
+        }
+
+        ecgChart.update("none");
+      } else {
+        document.getElementById("ecgStatus").textContent = "LEADS OFF";
+      }
+    };
+  </script>
+</body>
+</html>
